@@ -8,4 +8,5 @@ mount -o bind /dev mnt1/dev
 mount -o bind /sys mnt1/sys
 
 cd /
+mkdir /simruns/dist/disks/mnt1/benchmarks/VirtualLink/vl-bench
 mount --bind /vl-bench /simruns/dist/disks/mnt1/benchmarks/VirtualLink/vl-bench
