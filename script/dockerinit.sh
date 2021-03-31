@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+# Use cmake -DRAFT_ROOT=/benchmarks/VirtualLink/RaftLib/ -DVL_ROOT=/benchmarks/VirtualLink/libvl/ ../
 docker run \
     -v ~/boost_1_63_0:/boost_1_63_0 \
     -v ~/vl-bench:/vl-bench \
@@ -14,5 +16,6 @@ docker exec -it gem5 bash -c 'cd /simruns/dist/disks \
 && mount -o bind /sys mnt1/sys \
 && cd / && mkdir /simruns/dist/disks/mnt1/benchmarks/VirtualLink/vl-bench \
 && mount --bind /vl-bench /simruns/dist/disks/mnt1/benchmarks/VirtualLink/vl-bench \
-&& mount --bind /boost_1_63_0 /simruns/dist/disks/mnt1/benchmarks/VirtualLink/boost_1_63_0'
+&& mount --bind /boost_1_63_0 /simruns/dist/disks/mnt1/benchmarks/VirtualLink/boost_1_63_0 \
+&& mount --bind /gem5 /simruns/dist/disks/mnt1/benchmarks/VirtualLink/near-data-sim'
 docker exec -it gem5 bash
