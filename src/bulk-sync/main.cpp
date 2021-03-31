@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include <stdio.h>      /* printf, scanf, NULL */
 #include <stdlib.h>
+#include <atomic>
 
 enum ALLOC_TYPE
 {
@@ -140,7 +141,7 @@ private:
 public:
     Initializer(unsigned num_point, unsigned num_center, unsigned num_threads,
             unsigned *points, unsigned *distances, unsigned *centers
-            ) : num_point(num_point), num_center(num_center), num_threads(num_threads),
+            ) : raft::kernel(), num_point(num_point), num_center(num_center), num_threads(num_threads),
                 points(points), distances(distances), centers(centers) {
 
                     for (unsigned i = 0; i < num_threads; i++) {
@@ -157,7 +158,7 @@ public:
                     dif_ptr, num_center, centers);
             output[std::to_string(i)].push(data_frame);
         }
-        return raft::proceed;
+        return raft::stop;
     }
 };
 
@@ -187,7 +188,7 @@ public:
             dataframe.points_ptr[i] += 3;
         }
         output["out"].push(dataframe);
-        return raft::proceed;
+        return raft::stop;
     }
 };
 
@@ -203,43 +204,17 @@ public:
     }
     virtual raft::kstatus run()
     {
+        std::atomic<unsigned> sum = 0;
         for (unsigned i = 0; i < num_threads; i++) {
             Data dataframe;
             input[std::to_string(i)].pop(dataframe);
+            for (unsigned j = 0; j < dataframe.num_points_to_process; j++) {
+                sum += dataframe.points_ptr[j];
+            }
         }
         return raft::stop;
     }
 };
-
-/* template< typename T  > class Sum : public raft::parallel_k */
-/* { */
-/* public: */
-/*    Sum(std::size_t num_threads) : raft::parallel_k() */
-/*    { */
-/*        for (std::size_t i = 0; i < num_threads; i++) { */
-/*            addPortTo<Data>(input); */
-/*            addPortTo<Data>(output); */
-/*        } */
-/*    } */
-   
-/*    virtual raft::kstatus run() */
-/*    { */
-/*       unsigned adder; */
-/*       input[ "adder" ].pop( adder ); */
-/*       Data data_in; */
-/*       input[ "input" ].pop( data_in ); */
-
-/*       Data data_out(data_in.get_num_elem()); */
-      
-/*       for (int i = 0; i < data_in.get_num_elem(); i++) { */
-/*           data_out.at(i) = data_in.at(i) - adder; */
-/*       } */
-
-/*       output["output"].push(data_out); */
-
-/*       return( raft::proceed ); */
-/*    } */
-/* }; */
 
 void print_points(unsigned *points, unsigned num) {
     std::cout << "Points: ";
@@ -270,7 +245,7 @@ int main(int argc, char **argv)
     bool sched = false;
     ALLOC_TYPE at = STD_ALLOC;
     parse_args(argc, argv, &n, &c, &t, &check, &at, &sched);
-    std::cout << "passed num elem: " << n << c << t << std::endl;
+    /* std::cout << "passed num elem: " << n << c << t << std::endl; */
 
     // TODO: for now, assume n (number of points) is the multiple of 512
     /* n = 2048; */
@@ -278,17 +253,25 @@ int main(int argc, char **argv)
 
     unsigned *points = (unsigned *)malloc(sizeof(unsigned) * n);
     init_points(points, n);
-    print_points(points, n);
+    /* print_points(points, n); */
     unsigned *distances = (unsigned *)calloc(n, sizeof(unsigned));
     unsigned *centers = (unsigned *)malloc(sizeof(unsigned ) * c);
     init_centers(centers, c);
    
-    Initializer<Data> initializer = Initializer<Data>(n, c, t, points, distances, centers);
-    Kmeans<Data> kmeans_kernel = Kmeans<Data>();
-    Accumalator<Data> accumalator = Accumalator<Data>(t);
-    raft::map m;
-    m += initializer <= kmeans_kernel >= accumalator;
-    m.exe();
+    
+    for (int it = 0; it < 3; it++) {
+        Initializer<Data> initializer = Initializer<Data>(n, c, t, points, distances, centers);
+        Kmeans<Data> kmeans_kernel = Kmeans<Data>();
+        Accumalator<Data> accumalator = Accumalator<Data>(t);
+        raft::map m;
+
+        m += initializer <= kmeans_kernel >= accumalator;
+        /* std::cout << "starting map..." << std::endl; */
+        m.exe<partition_dummy, simple_schedule, stdalloc, no_parallel>();
+        /* std::cout << "finishing map..." << std::endl; */
+
+        /* print_points(points, n); */
+    }
 
     
     free(points);
