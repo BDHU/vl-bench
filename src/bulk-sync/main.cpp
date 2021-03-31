@@ -2,9 +2,7 @@
 #include <sstream>
 #include <memory>
 #include <raft>
-#include <raftio>
-#include <raftrandom>
-#include <raftmath>
+/* #include <raftio> */
 #include <cstdlib>
 #include <cstring>
 #include <getopt.h>
@@ -21,7 +19,7 @@ enum ALLOC_TYPE
 
 void usage(char* arg0)
 {
-  std::cerr << "Usage:\t" << arg0 << " [-c -v -d -q[1-3]] n c t" << std::endl;
+  std::cerr << "Usage:\t" << arg0 << " [-c -v -d -s -q[1-3]] n c t" << std::endl;
 }
 
 void parse_args(int argc, char** argv,
@@ -144,13 +142,13 @@ public:
             ) : raft::kernel(), num_point(num_point), num_center(num_center), num_threads(num_threads),
                 points(points), distances(distances), centers(centers) {
 
-                    for (unsigned i = 0; i < num_threads; i++) {
+                    for (int i = 0; i < num_threads; i++) {
                         output.addPort< Data >(std::to_string(i));
                     }
     }
 
     virtual raft::kstatus run() {
-        for (unsigned i = 0; i < num_threads; i++) {
+        for (int i = 0; i < num_threads; i++) {
             int num_points_for_each_thread = num_point / num_threads;
             unsigned *point_ptr = points + i * num_points_for_each_thread;
             unsigned *dif_ptr = distances + i * num_points_for_each_thread;
@@ -198,14 +196,14 @@ public:
     int num_threads;
     Accumalator(int num_threads) : raft::kernel(), num_threads(num_threads)
     {
-        for (unsigned i = 0; i < num_threads; i++) {
+        for (int i = 0; i < num_threads; i++) {
             input.addPort< Data >(std::to_string(i));
         }
     }
     virtual raft::kstatus run()
     {
         std::atomic<unsigned> sum = 0;
-        for (unsigned i = 0; i < num_threads; i++) {
+        for (int i = 0; i < num_threads; i++) {
             Data dataframe;
             input[std::to_string(i)].pop(dataframe);
             for (unsigned j = 0; j < dataframe.num_points_to_process; j++) {
@@ -267,7 +265,31 @@ int main(int argc, char **argv)
 
         m += initializer <= kmeans_kernel >= accumalator;
         /* std::cout << "starting map..." << std::endl; */
-        m.exe<partition_dummy, simple_schedule, stdalloc, no_parallel>();
+        if (at == STD_ALLOC) {
+            if (sched) {
+                m.exe<partition_dummy, pool_schedule, stdalloc, no_parallel>();
+            } else {
+                m.exe<partition_dummy, simple_schedule, stdalloc, no_parallel>();
+            }
+        }
+        else if (at == DYN_ALLOC) {
+            if (sched) {
+                m.exe<partition_dummy, pool_schedule, dynalloc, no_parallel>();
+            } else {
+                m.exe<partition_dummy, simple_schedule, dynalloc, no_parallel>();
+            }
+        }
+        else if (at == VTL_ALLOC) {
+            if (sched) {
+                m.exe<partition_dummy, pool_schedule, vlalloc, no_parallel>();
+            } else {
+                m.exe<partition_dummy, simple_schedule, vlalloc, no_parallel>();
+            }
+        }
+        else {
+            std::cerr << "no allocation mode, exiting..." << std::endl;
+            exit(-1);
+        }
         /* std::cout << "finishing map..." << std::endl; */
 
         /* print_points(points, n); */
