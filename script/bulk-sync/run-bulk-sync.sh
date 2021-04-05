@@ -28,7 +28,7 @@ ${GEM5_PATH}/build/ARM/gem5${2}.opt \
     ${GEM5_PATH}/configs/example/arm/fs_bigLITTLE_vl.py \
     --restore-from ${WORK_PATH}/m5_outputs/ckpt/ \
     --cpu-type timing \
-    --bootscript ${WORK_PATH}/m5_outputs/${BENCHNAME}/${BENCHNAME}.sh \
+    --bootscript ${WORK_PATH}/m5_outputs/${BENCHNAME}/${BENCHNAME}.rcS \
     --big-cpus 16 \
     --little-cpus 0 \
     --caches \

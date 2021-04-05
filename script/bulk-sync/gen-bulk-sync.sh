@@ -2,10 +2,10 @@
 
 BENCHNAME=bulk-sync
 MODE=(s d v)
-NUM_POINTS=(01)
-NUM_QTHREADS=(01)
-NUM_PARALLEL_KERNEL=(01)
-NUM_CENTERS=(01)
+NUM_POINTS=(1)
+NUM_QTHREADS=(1)
+NUM_PARALLEL_KERNEL=(1)
+NUM_CENTERS=(1)
 
 mkdir ./bulk-sync-boot
 cd ./bulk-sync-boot
@@ -16,7 +16,7 @@ for m in ${MODE[@]}; do
         for point in ${NUM_POINTS[@]}; do
             for c in ${NUM_CENTERS[@]}; do
                 for thread in ${NUM_PARALLEL_KERNEL[@]}; do
-                    file_name=$BENCHNAME-${m}q$qthread-$point-$c-$thread.sh
+                    file_name=$BENCHNAME-${m}q$qthread-$point-$c-$thread.rcS
                     echo $file_name
                     touch $file_name
                     echo "#!/bin/sh" >> $file_name
