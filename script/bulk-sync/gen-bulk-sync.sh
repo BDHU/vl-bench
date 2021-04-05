@@ -1,9 +1,11 @@
+#!/bin/bash
+
 BENCHNAME=bulk-sync
 MODE=(s d v)
-NUM_POINTS=(1024)
-NUM_QTHREADS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)
-NUM_PARALLEL_KERNEL=(1 2 4 8 16 32 64)
-NUM_CENTERS=(3)
+NUM_POINTS=(01)
+NUM_QTHREADS=(01)
+NUM_PARALLEL_KERNEL=(01)
+NUM_CENTERS=(01)
 
 mkdir ./bulk-sync-boot
 cd ./bulk-sync-boot
