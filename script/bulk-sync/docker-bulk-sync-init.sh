@@ -1,11 +1,8 @@
 #!/bin/bash
 
-BENCHNAME=bulk-sync
-MODE=(v)
-NUM_POINTS=(1)
-NUM_QTHREADS=(1)
-NUM_PARALLEL_KERNEL=(1)
-NUM_CENTERS=(1)
+source config.sh
+
+./gen-bulk-sync.sh
 
 BOOTSCRIPT_DIR=$(pwd)/bulk-sync-boot
 echo $BOOTSCRIPT_DIR
@@ -33,9 +30,9 @@ for m in ${MODE[@]}; do
                     
                     docker cp $(pwd)/run-bulk-sync.sh ${container_name}:/simruns/VirtualLink/run-bulk-sync.sh
                     # docker exec -it ${container_name} bash -c 'cd /simruns/VirtualLink && mkdir -p ${container_name}'
-                    docker exec  ${container_name} mkdir -p /simruns/VirtualLink/m5_outputs/$container_name
+                    docker exec -d ${container_name} mkdir -p /simruns/VirtualLink/m5_outputs/$container_name
                     docker cp ${BOOTSCRIPT_DIR}/${container_name}.rcS ${container_name}:/simruns/VirtualLink/m5_outputs/${container_name}/${container_name}.rcS
-                    docker exec  $container_name bash -c 'cd /simruns/VirtualLink \
+                    docker exec -d $container_name bash -c 'cd /simruns/VirtualLink \
                     && ./run-bulk-sync.sh ${SCRIPT_LABEL}'
                 done
             done

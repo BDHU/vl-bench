@@ -1,11 +1,6 @@
 #!/bin/bash
 
-BENCHNAME=bulk-sync
-MODE=(s d v)
-NUM_POINTS=(1)
-NUM_QTHREADS=(1)
-NUM_PARALLEL_KERNEL=(1)
-NUM_CENTERS=(1)
+source config.sh
 
 mkdir ./bulk-sync-boot
 cd ./bulk-sync-boot

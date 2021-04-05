@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+BENCHNAME=bulk-sync
+MODE=(s d v)
+NUM_POINTS=(1024)
+NUM_QTHREADS=(16)
+NUM_PARALLEL_KERNEL=(1 2 4 8 16)
+NUM_CENTERS=(1)
+
