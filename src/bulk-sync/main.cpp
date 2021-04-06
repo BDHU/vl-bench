@@ -45,7 +45,7 @@ void parse_args(int argc, char** argv,
         break;
       case 'q' :
         helper = atoi(optarg);
-        if (1 > helper || 3 < helper)
+        if (1 > helper || 64 < helper)
         {
           std::cerr << "You failed to properly specify the number of qthreads" << std::endl;
           us();
