@@ -13,12 +13,12 @@ for m in ${MODE[@]}; do
         for point in ${NUM_POINTS[@]}; do
             for c in ${NUM_CENTERS[@]}; do
                 new_c=$c
-                if [[ ( $c < 10  ) ]]; then
+                if [[ ( $c -lt 10  ) ]]; then
                     new_c=0$c
                 fi
                 for thread in ${NUM_PARALLEL_KERNEL[@]}; do
                     new_thread=$thread
-                    if [[ ( $thread < 10 ) ]]; then
+                    if [[ ( $thread -lt 10 ) ]]; then
                         new_thread=0$thread
                     fi
                     # Use cmake -DRAFT_ROOT=/benchmarks/VirtualLink/RaftLib/ -DVL_ROOT=/benchmarks/VirtualLink/libvl/ ../
