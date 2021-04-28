@@ -13,7 +13,8 @@ for m in ${MODE[@]}; do
             for c in ${NUM_CENTERS[@]}; do
                 for thread in ${NUM_PARALLEL_KERNEL[@]}; do
                     # Use cmake -DRAFT_ROOT=/benchmarks/VirtualLink/RaftLib/ -DVL_ROOT=/benchmarks/VirtualLink/libvl/ ../
-                    container_name=$BENCHNAME-${m}q${qthread}-$point-$c-$thread
+                    actual_points=$((thread*point))
+                    container_name=$BENCHNAME-${m}q${qthread}-${actual_points}-$c-$thread
                     docker run \
                         --env SCRIPT_LABEL=$container_name \
                         -v ~/boost_1_63_0:/boost_1_63_0 \

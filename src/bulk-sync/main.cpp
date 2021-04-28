@@ -10,6 +10,13 @@
 #include <stdlib.h>
 #include <atomic>
 
+#ifndef NOGEM5
+#include <gem5/m5ops.h>
+#else
+inline void m5_reset_stats(unsigned a, unsigned b){}
+inline void m5_dump_reset_stats(unsigned a, unsigned b){}
+#endif
+
 enum ALLOC_TYPE
 {
     STD_ALLOC,
@@ -21,6 +28,8 @@ void usage(char* arg0)
 {
   std::cerr << "Usage:\t" << arg0 << " [-c -v -d -s -q[1-3]] n c t" << std::endl;
 }
+
+int global_sum = 0;
 
 void parse_args(int argc, char** argv,
     unsigned* n, unsigned *c, unsigned *t, bool* check, ALLOC_TYPE* at, bool* sched)
@@ -161,56 +170,102 @@ public:
 };
 
 template <class datatype>
-class Kmeans : public raft::kernel {
+class Distributor : public raft::kernel {
 public:
     CLONE();
-    Kmeans() : raft::kernel()
+    Distributor() : raft::kernel()
     {
         input.addPort< datatype >( "in" );
-        output.addPort< datatype >( "out" );
+        output.addPort< unsigned >( "out" );
     }
     // copy constructor for cloning
-    Kmeans(const Kmeans &other) : raft::kernel()
+    Distributor(const Distributor &other) : raft::kernel()
     {
         input.addPort< datatype >( "in" );
-        output.addPort< datatype >( "out" );
+        output.addPort< unsigned >( "out" );
     }
 
-    virtual ~Kmeans() = default;
+    virtual ~Distributor() = default;
 
     virtual raft::kstatus run()
     {
         Data dataframe;
         input["in"].pop(dataframe);
         for (unsigned i = 0; i < dataframe.num_points_to_process; i++) {
-            dataframe.points_ptr[i] += 3;
+            /* dataframe.points_ptr[i] += dataframe.centers[0]; */
+            output["out"].push(dataframe.points_ptr[i]);
         }
-        output["out"].push(dataframe);
-        return raft::stop;
+        return raft::proceed;
+        //proceed
+    }
+};
+
+template <class datatype>
+class Kmeans : public raft::kernel {
+private:
+    unsigned num_points;
+public:
+    CLONE();
+    Kmeans(unsigned num_points) : num_points(num_points), raft::kernel()
+    {
+        input.addPort< unsigned >( "in" );
+        output.addPort< unsigned >( "out" );
+    }
+    // copy constructor for cloning
+    Kmeans(const Kmeans &other) : raft::kernel()
+    {
+        input.addPort< unsigned >( "in" );
+        output.addPort< unsigned >( "out" );
+    }
+
+    virtual ~Kmeans() = default;
+
+    virtual raft::kstatus run()
+    {
+        std::cout << "executed------\n";
+        unsigned sum = 0;
+        for (unsigned i = 0; i < num_points; i++) {
+            /* dataframe.points_ptr[i] += dataframe.centers[0]; */
+            unsigned point;
+            input["in"].pop(point);
+            sum += point;
+            /* dataframe.dif_ptr[i] = dataframe.centers[0] - dataframe.points_ptr[i]; */
+        }
+        output["out"].push(sum);
+        return raft::proceed;
+        //proceed
     }
 };
 
 template <class datatype>
 class Accumalator : public raft::kernel {
+private:
+    unsigned num_points;
 public:
     int num_threads;
-    Accumalator(int num_threads) : raft::kernel(), num_threads(num_threads)
+    Accumalator(int num_threads, unsigned num_points) : raft::kernel(), num_threads(num_threads),
+        num_points(num_points)
     {
         for (int i = 0; i < num_threads; i++) {
-            input.addPort< Data >(std::to_string(i));
+            input.addPort< unsigned >(std::to_string(i));
         }
     }
     virtual raft::kstatus run()
     {
-        std::atomic<unsigned> sum = 0;
+        std::cout << "executed------2222\n";
+        /* std::atomic<unsigned> sum = 0; */
+        /* int sum = 0; */
         for (int i = 0; i < num_threads; i++) {
-            Data dataframe;
-            input[std::to_string(i)].pop(dataframe);
-            for (unsigned j = 0; j < dataframe.num_points_to_process; j++) {
-                sum += dataframe.points_ptr[j];
+            unsigned sum;
+            for (unsigned j = 0; j < num_points; j++) {
+                input[std::to_string(i)].pop(sum);
+                /* sum += dataframe.points_ptr[j]; */
+                /* global_sum += dataframe.dif_ptr[j]; */
+                global_sum += sum;
             }
         }
-        return raft::stop;
+        return raft::proceed;
+        //proceed
     }
 };
 
@@ -224,7 +279,8 @@ void print_points(unsigned *points, unsigned num) {
 
 void init_points(unsigned *points, unsigned num) {
     for (unsigned i = 0; i < num; i++) {
-        points[i] = i % 3;
+        /* points[i] = i % 3; */
+        points[i] = 1;
     }
 }
 
@@ -249,22 +305,26 @@ int main(int argc, char **argv)
     /* n = 2048; */
     /* c = 3; */
 
-    unsigned *points = (unsigned *)malloc(sizeof(unsigned) * n);
+    unsigned *points = (unsigned *)malloc(n * sizeof(unsigned));
     init_points(points, n);
     /* print_points(points, n); */
-    unsigned *distances = (unsigned *)calloc(n, sizeof(unsigned));
+    unsigned *distances = (unsigned *)malloc(n * sizeof(unsigned));
     unsigned *centers = (unsigned *)malloc(sizeof(unsigned ) * c);
-    init_centers(centers, c);
+    //init_centers(centers, c);
    
     
+    // TODO: reset m5 status
+    m5_reset_stats(0,0);
+
     for (int it = 0; it < 3; it++) {
         Initializer<Data> initializer = Initializer<Data>(n, c, t, points, distances, centers);
-        Kmeans<Data> kmeans_kernel = Kmeans<Data>();
-        Accumalator<Data> accumalator = Accumalator<Data>(t);
+        Distributor<Data> distributor = Distributor<Data>();
+        Kmeans<Data> kmeans_kernel = Kmeans<Data>(n / t);
+        Accumalator<Data> accumalator = Accumalator<Data>(t, n / t);
         raft::map m;
 
-        m += initializer <= kmeans_kernel >= accumalator;
-        /* std::cout << "starting map..." << std::endl; */
+        m += initializer <= (distributor >> kmeans_kernel) >= accumalator;
+        std::cout << "starting map..." << std::endl;
         if (at == STD_ALLOC) {
             if (sched) {
                 m.exe<partition_dummy, pool_schedule, stdalloc, no_parallel>();
@@ -290,6 +350,7 @@ int main(int argc, char **argv)
             std::cerr << "no allocation mode, exiting..." << std::endl;
             exit(-1);
         }
+        std::cout << "glboal sum: " << global_sum << std::endl;
         /* std::cout << "finishing map..." << std::endl; */
 
         /* print_points(points, n); */
